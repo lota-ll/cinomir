@@ -25,8 +25,8 @@ lint: ## ruff: помилки + форматування
 	$(BIN)/ruff format --check .
 
 fmt: ## Автоформатування
-	$(BIN)/ruff check --fix .
 	$(BIN)/ruff format .
+	$(BIN)/ruff check --fix .
 
 test: ## Тести (без Docker і без мережі)
 	$(BIN)/pytest
