@@ -5,7 +5,7 @@ BIN := $(VENV)/bin
 Q ?= тунець у власному соку
 ARGS ?=
 
-.PHONY: help env install lint fmt test up up-bot down clean logs search
+.PHONY: help env install lint fmt test up up-bot down clean logs search migrate-check
 
 help: ## Показати команди
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -18,7 +18,7 @@ $(BIN)/activate:
 
 install: $(BIN)/activate ## Віртуальне оточення + залежності + pre-commit
 	$(BIN)/pip install -e ".[dev]"
-	$(BIN)/pre-commit install
+	$(BIN)/pre-commit install || true
 
 lint: ## ruff: помилки + форматування
 	$(BIN)/ruff check .
@@ -28,13 +28,13 @@ fmt: ## Автоформатування
 	$(BIN)/ruff format .
 	$(BIN)/ruff check --fix .
 
-test: ## Тести (без Docker і без мережі)
+test: ## Тести (SQLite + fakeredis, без Docker і без мережі)
 	$(BIN)/pytest
 
-up: env ## Запустити стек (працюватиме після задачі 6)
-	docker compose up -d --build --wait
+up: env ## Запустити postgres, redis, api, worker
+	docker compose up -d --build --wait postgres redis migrate api worker
 
-up-bot: env ## Стек + бот (після задачі 6)
+up-bot: env ## Те саме + Telegram-бот (потрібен TELEGRAM_BOT_TOKEN у .env)
 	docker compose --profile bot up -d --build
 
 down: ## Зупинити (дані БД лишаються)
@@ -46,5 +46,8 @@ clean: ## Зупинити і видалити дані БД
 logs: ## Логи всіх сервісів
 	docker compose --profile bot logs -f --tail=100
 
-search: ## Пошук через API (після задачі 5)
+search: ## Пошук через API: make search Q="молоко 2,5%" ARGS="--sort unit"
 	$(BIN)/cinomir-search "$(Q)" $(ARGS)
+
+migrate-check: ## Чи відповідають моделі міграціям (потрібна запущена БД)
+	DATABASE_URL=postgresql+psycopg://cinomir:cinomir@localhost:5432/cinomir $(BIN)/alembic check

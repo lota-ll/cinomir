@@ -44,3 +44,6 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q -p anyio"
+
+[project.scripts]
+cinomir-search = "cinomir.cli:main"
