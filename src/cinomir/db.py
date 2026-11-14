@@ -1,4 +1,4 @@
-"""Async SQLAlchemy."""
+"""Async SQLAlchemy. Engine створюється ліниво, тож тести можуть підмінити URL."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from .config import get_settings
 
@@ -29,8 +30,16 @@ _factory: async_sessionmaker[AsyncSession] | None = None
 
 
 def configure_db(url: str) -> AsyncEngine:
+    """(Пере)налаштувати engine.
+
+    postgresql+psycopg:// — psycopg 3 підтримує і sync (Alembic), і async (застосунок)
+    з тим самим URL. Для SQLite у тестах — sqlite+aiosqlite:// без пулу.
+    """
     global _engine, _factory
-    _engine = create_async_engine(url, pool_pre_ping=True)
+    kwargs: dict = {"pool_pre_ping": True}
+    if url.startswith("sqlite"):
+        kwargs = {"poolclass": NullPool}
+    _engine = create_async_engine(url, **kwargs)
     _factory = async_sessionmaker(_engine, expire_on_commit=False)
     return _engine
 
@@ -43,6 +52,7 @@ def session_factory() -> async_sessionmaker[AsyncSession]:
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency: одна сесія на запит."""
     async with session_factory()() as session:
         yield session
 

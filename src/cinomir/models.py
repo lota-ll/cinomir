@@ -19,10 +19,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base, utcnow
 
+# BIGINT у PostgreSQL, INTEGER у SQLite (інакше SQLite не робить autoincrement)
 BigId = BigInteger().with_variant(Integer(), "sqlite")
 
 
 class Product(Base):
+    """Товар конкретної мережі. Один і той самий фізичний товар у 3 мережах = 3 рядки."""
+
     __tablename__ = "products"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -30,10 +33,11 @@ class Product(Base):
     chain_product_id: Mapped[str] = mapped_column(String(64))
     title: Mapped[str] = mapped_column(String(300))
     pack: Mapped[str | None] = mapped_column(String(40), default=None)
-    qty: Mapped[float | None] = mapped_column(Float, default=None)
-    qty_base: Mapped[str | None] = mapped_column(String(4), default=None)
+    qty: Mapped[float | None] = mapped_column(Float, default=None)  # г або мл
+    qty_base: Mapped[str | None] = mapped_column(String(4), default=None)  # "кг" | "л"
     ean: Mapped[str | None] = mapped_column(String(14), default=None, index=True)
     ean_source: Mapped[str | None] = mapped_column(String(10), default=None)
+    # Коли воркер востаннє шукав штрихкод (щоб не питати мережу щоразу, якщо його немає)
     ean_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     slug: Mapped[str | None] = mapped_column(String(300), default=None)
     url: Mapped[str | None] = mapped_column(String(500), default=None)
@@ -48,6 +52,8 @@ class Product(Base):
 
 
 class PriceSnapshot(Base):
+    """Ціна і наявність у момент спостереження. З цього росте історія цін."""
+
     __tablename__ = "price_snapshots"
 
     id: Mapped[int] = mapped_column(BigId, primary_key=True)
